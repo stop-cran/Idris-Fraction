@@ -1,7 +1,7 @@
 module Fraction
 
 import NatExtras
-import Singleton
+import Proposition
 
 %default total
 
@@ -102,14 +102,14 @@ fractionSuccIsQS QZ {ok=Refl} = Refl
 fractionSuccIsQS (QS _) {ok=Refl} = Refl
 fractionSuccIsQS (QR f) {n} {ok} with (isLast (QR f))
     | Left prf = absurd $ replace {P=\x=>LTE (S x) n} ok prf
-    | Right prf = rewrite singleton ok prf in Refl
+    | Right prf = rewrite atMostOneValue ok prf in Refl
 
 fractionSuccIsQR : (f : Fraction (S n)) -> {auto ok : LT (remainder f) n} -> QR f = fractionSucc f
 fractionSuccIsQR {n=Z} _ {ok} = absurd ok
 fractionSuccIsQR {n=S _} QZ {ok=LTESucc LTEZero} = Refl
 fractionSuccIsQR {n=S _} (QS _) {ok=LTESucc LTEZero} = Refl
 fractionSuccIsQR (QR f) {n} {ok} with (isLast (QR f))
-    | Left prf = rewrite singleton ok prf in Refl
+    | Left prf = rewrite atMostOneValue ok prf in Refl
     | Right prf = absurd $ replace {P=\x=>LTE (S x) n} prf ok
 
 divModInjective : (f : Fraction (S n)) -> f = divMod (fractionToNat f) (S n)
@@ -136,11 +136,11 @@ remainderDoubleIsSame {n=S n} (QR {ok=LTESucc ok} f) with (isLast f)
 remainderDoubleIsSame {n=Z} (QS _) = Refl
 remainderDoubleIsSame {n=S _} (QS _) = Refl
 
-div' : (m, n : Nat) -> {auto ok : GT n Z} -> Nat
-div' m (S n) = quotient $ divMod m (S n)
+divQ : (m, n : Nat) -> {auto ok : GT n Z} -> Nat
+divQ m (S n) = quotient $ divMod m (S n)
 
-mod' : (m, n : Nat) -> {auto ok : GT n Z} -> Nat
-mod' m (S n) = remainder $ divMod m (S n)
+modQ : (m, n : Nat) -> {auto ok : GT n Z} -> Nat
+modQ m (S n) = remainder $ divMod m (S n)
 
 divModSucc : divMod (S m) (S n) = fractionSucc (divMod m (S n))
 divModSucc {n=Z} = Refl
@@ -149,42 +149,42 @@ divModSucc {n=S n} {m=S m} with (isLast (divMod m (S n)))
     | Left _ = Refl
     | Right _ = Refl
 
-plus' : Fraction n -> Fraction n -> Fraction n
-plus' QZ right = right
-plus' (QR left) right = fractionSucc $ plus' left right
-plus' (QS left) right = fractionSucc $ plus' left right
+plusQ : Fraction n -> Fraction n -> Fraction n
+plusQ QZ right = right
+plusQ (QR left) right = fractionSucc $ plusQ left right
+plusQ (QS left) right = fractionSucc $ plusQ left right
 
-plusZeroRightNeutral' : (f : Fraction (S n)) -> f = plus' f QZ
-plusZeroRightNeutral' QZ = Refl
-plusZeroRightNeutral' {n=Z} (QR {ok} _) = absurd ok
-plusZeroRightNeutral' {n=S _} (QR f) = trans
+plusZeroRightNeutralQ : (f : Fraction (S n)) -> f = plusQ f QZ
+plusZeroRightNeutralQ QZ = Refl
+plusZeroRightNeutralQ {n=Z} (QR {ok} _) = absurd ok
+plusZeroRightNeutralQ {n=S _} (QR f) = trans
     (fractionSuccIsQR f)
-    (cong {f=fractionSucc} $ plusZeroRightNeutral' f)
-plusZeroRightNeutral' {n=Z} (QS f) = trans
+    (cong {f=fractionSucc} $ plusZeroRightNeutralQ f)
+plusZeroRightNeutralQ {n=Z} (QS f) = trans
     (fractionSuccIsQS f)
-    (cong {f=fractionSucc} $ plusZeroRightNeutral' f)
-plusZeroRightNeutral' {n=S _} (QS f) = trans
+    (cong {f=fractionSucc} $ plusZeroRightNeutralQ f)
+plusZeroRightNeutralQ {n=S _} (QS f) = trans
     (fractionSuccIsQS f)
-    (cong {f=fractionSucc} $ plusZeroRightNeutral' f)
+    (cong {f=fractionSucc} $ plusZeroRightNeutralQ f)
 
-plusSuccRightSucc' : (left, right : Fraction (S n)) -> fractionSucc (plus' left right) = plus' left (fractionSucc right)
-plusSuccRightSucc' QZ right = Refl
-plusSuccRightSucc' (QR left) right = cong $ plusSuccRightSucc' left right
-plusSuccRightSucc' (QS left) right = cong $ plusSuccRightSucc' left right
+plusSuccRightSuccQ : (left, right : Fraction (S n)) -> fractionSucc (plusQ left right) = plusQ left (fractionSucc right)
+plusSuccRightSuccQ QZ right = Refl
+plusSuccRightSuccQ (QR left) right = cong $ plusSuccRightSuccQ left right
+plusSuccRightSuccQ (QS left) right = cong $ plusSuccRightSuccQ left right
 
-divModPlus : divMod (m1 + m2) (S n) = plus' (divMod m1 (S n)) (divMod m2 (S n))
+divModPlus : divMod (m1 + m2) (S n) = plusQ (divMod m1 (S n)) (divMod m2 (S n))
 divModPlus {m1=Z} {m2=Z} = Refl
 divModPlus {m1=Z} {m2=S m} = Refl
 divModPlus {n} {m1=S m} {m2=Z} = rewrite plusZeroRightNeutral m in
-    plusZeroRightNeutral' $ fractionSucc $ divMod m (S n)
+    plusZeroRightNeutralQ $ fractionSucc $ divMod m (S n)
 divModPlus {n} {m1=S m1} {m2=S m2} =
     rewrite sym (plusSuccRightSucc m1 m2) in trans
         (cong {f=fractionSucc} $ divModPlus {m1=S m1} {m2} {n})
-        (plusSuccRightSucc' (fractionSucc (divMod m1 (S n))) (divMod m2 (S n)))
+        (plusSuccRightSuccQ (fractionSucc (divMod m1 (S n))) (divMod m2 (S n)))
 
-divPlusBoundSucc : div' (S n + m) (S n) = S (div' m (S n))
+divPlusBoundSucc : divQ (S n + m) (S n) = S (divQ m (S n))
 
-divMult : div' (S k * m) (S k * S n) = div' m (S n)
+divMult : divQ (S k * m) (S k * S n) = divQ m (S n)
 divMult {k=Z} {m} {n} =
     rewrite plusZeroRightNeutral m in
         rewrite plusZeroRightNeutral n in
@@ -192,7 +192,7 @@ divMult {k=Z} {m} {n} =
 divMult {k=S k} {m=Z} = rewrite multZeroRightZero k in Refl
 divMult {k=S k} {m=S m} {n} = ?h3
 
-modPreservesSum : (m1, m2, n : Nat) -> mod' (mod' m1 (S n) + mod' m2 (S n)) (S n) = mod' (m1 + m2) (S n)
+modPreservesSum : (m1, m2, n : Nat) -> modQ (modQ m1 (S n) + modQ m2 (S n)) (S n) = modQ (m1 + m2) (S n)
 modPreservesSum m1 m2 Z =
     rewrite remainderDivOneIsZero m1 in
         rewrite remainderDivOneIsZero m2 in
